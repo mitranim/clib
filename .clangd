@@ -1,0 +1,4 @@
+Completion:
+  ArgumentLists: None
+CompileFlags:
+  Add: [-DCLANGD=] # Lets us sometimes `#ifdef` just for clangd.

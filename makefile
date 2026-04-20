@@ -1,0 +1,158 @@
+MAKEFLAGS := --silent
+MAKE_CONC := $(MAKE) -j 128 CONC=true clear=$(or $(clear),false)
+CLEAR ?= $(if $(filter false,$(clear)),, )
+CC ?= clang
+PROD ?=
+STRICT ?=
+DEBUG_FLAGS_0 ?= -g3 -fsanitize=undefined,address,integer,nullability -fstack-protector
+DEBUG_FLAGS_1 ?= -g3 -Wno-unused-parameter -Wno-unused-variable
+DEBUG_FLAGS_PROD ?= -g3 -O2 -Wno-unused-parameter -Wno-unused-variable
+DEBUG_FLAGS ?= $(if $(DEBUG),$(DEBUG_FLAGS_0),$(if $(PROD),$(DEBUG_FLAGS_PROD),$(DEBUG_FLAGS_1)))
+CRASH_FLAGS ?= $(and $(FAST_CRASH),-DFAST_CRASH)
+STRICT_FLAGS ?= $(and $(STRICT),-Werror)
+COMPILE_FLAGS ?= $(shell printf ' %s' $$(cat compile_flags.txt))
+CFLAGS ?= $(and $(PROD),-DPROD) $(COMPILE_FLAGS) $(STRICT_FLAGS) $(DEBUG_FLAGS) $(CRASH_FLAGS)
+SRC ?= src
+GEN ?= generated
+LOCAL ?= local
+MACH_GEN_SRC ?= mig/mach_exc.defs
+MACH_GEN_OUT ?= $(GEN)/mach_exc.c
+ALL_SRC ?= $(wildcard $(SRC)/*.c $(SRC)/*.h $(SRC)/**/*.c $(SRC)/**/*.h)
+FILE_EXE ?= $(and $(file),$(basename $(file)).exe)
+DISASM_FLAGS ?= --disassemble-all --headers --private-headers --reloc --dynamic-reloc --syms --dynamic-syms
+WATCH_IGNORE ?= -i=$(GEN)
+WATCH ?= watchexec $(and $(CLEAR),-c) $(WATCH_IGNORE) -r -d=1ms -n -q
+WATCH_COMP ?= $(WATCH) -e=c,h,s
+WATCH_IMM ?= $(WATCH) -e=exe --no-vcs-ignore
+ARTIF ?= *.o *.exe *.dSYM *.plist *.elf *.dbg **/*.o **/*.exe **/*.dSYM **/*.plist **/*.elf **/*.dbg
+SYNC_FLAGS ?= -au --itemize-changes $(and $(dry),-n)
+CODE_DIR ?= $(HOME)/code/$(USER)
+
+ifeq ($(verb),true)
+	OK = echo [$@] ok
+endif
+
+# Disables some dangerous behaviors. Without this, `$@` sometimes changes from
+# the intended target name to something surprising, like `makefile`, resulting
+# in weird `cc` build commands that don't work and delete the wrong files.
+.SUFFIXES:
+
+# Auto-delete intermediary executables if any.
+# Automatically affects `run`.
+.INTERMEDIATE: $(FILE_EXE)
+
+help: # Print help.
+	echo "Select one of the following commands."
+	echo "Viewing a definition: \`make -n <name>\`."
+	echo
+	for val in $(MAKEFILE_LIST); do \
+		grep -E '^\S+:' $$val | sed 's/:.*#/#--/;s/:.*$$/#--/;s/^/  /' | column -t -s '#' | uniq || true; \
+	done
+	echo
+
+# Usage example:
+#
+#   make run file=some_file.c
+.PHONY: run
+run: $(FILE_EXE) $(ALL_SRC)
+	./$(FILE_EXE)
+
+.PHONY: run_w
+run_w:
+	$(WATCH_COMP) -- $(MAKE) run
+
+# Example: `make some_file.exe && ./some_file.exe`. This recipe doesn't need
+# to deal with multiple translation units or know dependencies between files,
+# because we prefer "unity build": each C file includes all its dependencies
+# via `#include` and uses `#pragma once` for deduplication.
+#
+# Even on Unix, using `.exe` is convenient. It makes this recipe
+# possible, allows to use `.INTERMEDIATE` for auto-cleanup, and
+# allows `make clean` to delete these executables by wildcard.
+#
+# Also see `make run` which runs and deletes the executable.
+%.exe: %.c $(ALL_SRC)
+	$(CC) $(CFLAGS) -x c $< -o $@
+
+**/%.exe: %.c $(ALL_SRC)
+	$(CC) $(CFLAGS) -x c $< -o $@
+
+# Fires off `lldb` with the given `file` and `args`
+# without starting the executable.
+.PHONY: debug
+debug:
+	lldb \
+		--source-quietly \
+		--one-line "settings set show-statusline false" \
+		--one-line "settings set target.disable-aslr true" \
+		$(and $(DEBUG),--one-line "settings set target.env-vars DEBUG=true") \
+		--file $(file) -- $(args)
+
+# .PHONY: debug_run
+# debug_run:
+# 	lldb --batch \
+# 		--source-quietly \
+# 		--one-line "settings set show-statusline false" \
+# 		--one-line "process handle SIGSEGV --notify true --pass true --stop false" \
+# 		--one-line "process handle SIGBUS  --notify true --pass true --stop false" \
+# 		--one-line "process handle SIGILL  --notify true --pass true --stop false" \
+# 		--one-line "process handle SIGABRT --notify true --pass true --stop false" \
+# 		--one-line "settings set target.disable-aslr true" \
+# 		$(and $(DEBUG),--one-line "settings set target.env-vars DEBUG=true") \
+# 		--one-line "run" \
+# 		--one-line "quit" \
+# 		--file $(file) -- $(args)
+
+.PHONY: debug_run
+debug_run:
+	lldb --batch \
+		--source-quietly \
+		--one-line "settings set show-statusline false" \
+		--one-line "settings set target.disable-aslr true" \
+		$(and $(DEBUG),--one-line "settings set target.env-vars DEBUG=true") \
+		--one-line "run" \
+		--one-line "quit" \
+		--file $(file) -- $(args)
+
+.PHONY: debug_run_w
+debug_run_w:
+	$(WATCH_IMM) -- $(MAKE) debug_run
+
+.PHONY: prepro
+prepro:
+	mkdir -p $(LOCAL)
+	$(CC) -E $(CFLAGS) $(file) -o $(LOCAL)/out.c
+
+.PHONY: asm
+asm:
+	mkdir -p $(LOCAL)
+	$(CC) -S $(CFLAGS) $(file) -o $(LOCAL)/out.s
+
+.PHONY: disasm
+disasm:
+	mkdir -p $(LOCAL)
+	llvm-objdump $(DISASM_FLAGS) $(file) > $(LOCAL)/out.s
+
+.PHONY: clean
+clean:
+	rm -rf $(GEN) $(wildcard $(ARTIF))
+
+# The MIG's output is much worse than this.
+$(MACH_GEN_OUT): $(MACH_GEN_SRC)
+	mkdir -p $(GEN)
+	xcrun mig -server $(GEN)/tmp.c -user /dev/null -header /dev/null $(MACH_GEN_SRC) \
+		&& cat mig/mach_pre.txt $(GEN)/tmp.c mig/mach_suf.txt \
+			| sed -e 's/__attribute__((unused))//g' -e 's/__attribute__((__unused__))//g' \
+			| clang-format \
+			> $(MACH_GEN_OUT) \
+		; rm -rf $(GEN)/tmp.c
+
+# make get dir=some_repo/clib
+.PHONY: get
+get:
+	rsync $(SYNC_FLAGS) "$(CODE_DIR)/$(dir)/" "./src/"
+
+# make set dir=some_repo/clib
+.PHONY: set
+set:
+	rsync $(SYNC_FLAGS) "./src/" "$(CODE_DIR)/$(dir)/"

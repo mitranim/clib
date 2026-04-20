@@ -1,0 +1,20 @@
+/*
+!/*.c
+!/*.h
+!/*.md
+!/*.txt
+!/makefile
+!/unlicense
+!/drafts
+!/mig
+!/src
+
+# Should be listed last.
+.*
+*.exe
+*.dSYM
+!.git*
+!.clang*
+!*config
+!*ignore
+!*rc
