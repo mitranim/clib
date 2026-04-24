@@ -1,45 +1,11 @@
-MAKEFLAGS := --silent
-MAKE_CONC := $(MAKE) -j 128 CONC=true clear=$(or $(clear),false)
-CLEAR ?= $(if $(filter false,$(clear)),, )
-CC ?= clang
-PROD ?=
-STRICT ?=
-DEBUG_FLAGS_0 ?= -g3 -fsanitize=undefined,address,integer,nullability -fstack-protector
-DEBUG_FLAGS_1 ?= -g3 -Wno-unused-parameter -Wno-unused-variable
-DEBUG_FLAGS_PROD ?= -g3 -O2 -Wno-unused-parameter -Wno-unused-variable
-DEBUG_FLAGS ?= $(if $(DEBUG),$(DEBUG_FLAGS_0),$(if $(PROD),$(DEBUG_FLAGS_PROD),$(DEBUG_FLAGS_1)))
-CRASH_FLAGS ?= $(and $(FAST_CRASH),-DFAST_CRASH)
-STRICT_FLAGS ?= $(and $(STRICT),-Werror)
-COMPILE_FLAGS ?= $(shell printf ' %s' $$(cat compile_flags.txt))
-CFLAGS ?= $(and $(PROD),-DPROD) $(COMPILE_FLAGS) $(STRICT_FLAGS) $(DEBUG_FLAGS) $(CRASH_FLAGS)
-SRC ?= src
-GEN ?= generated
-LOCAL ?= local
+# Requires Make 4+`.
+include ./make_misc.mk
+-include .env.properties
+
 MACH_GEN_SRC ?= mig/mach_exc.defs
-MACH_GEN_OUT ?= $(GEN)/mach_exc.c
-ALL_SRC ?= $(wildcard $(SRC)/*.c $(SRC)/*.h $(SRC)/**/*.c $(SRC)/**/*.h)
-FILE_EXE ?= $(and $(file),$(basename $(file)).exe)
-DISASM_FLAGS ?= --disassemble-all --headers --private-headers --reloc --dynamic-reloc --syms --dynamic-syms
-WATCH_IGNORE ?= -i=$(GEN)
-WATCH ?= watchexec $(and $(CLEAR),-c) $(WATCH_IGNORE) -r -d=1ms -n -q
-WATCH_COMP ?= $(WATCH) -e=c,h,s
-WATCH_IMM ?= $(WATCH) -e=exe --no-vcs-ignore
-ARTIF ?= *.o *.exe *.dSYM *.plist *.elf *.dbg **/*.o **/*.exe **/*.dSYM **/*.plist **/*.elf **/*.dbg
-SYNC_FLAGS ?= -au --itemize-changes $(and $(dry),-n)
+MACH_GEN_OUT ?= $(GEN_DIR)/mach_exc.c
 CODE_DIR ?= $(HOME)/code/$(USER)
-
-ifeq ($(verb),true)
-	OK = echo [$@] ok
-endif
-
-# Disables some dangerous behaviors. Without this, `$@` sometimes changes from
-# the intended target name to something surprising, like `makefile`, resulting
-# in weird `cc` build commands that don't work and delete the wrong files.
-.SUFFIXES:
-
-# Auto-delete intermediary executables if any.
-# Automatically affects `run`.
-.INTERMEDIATE: $(FILE_EXE)
+SYNC_FLAGS ?= -au --itemize-changes $(and $(dry),-n)
 
 help: # Print help.
 	echo "Select one of the following commands."
@@ -53,29 +19,14 @@ help: # Print help.
 # Usage example:
 #
 #   make run file=some_file.c
+#   make run file=some_file.c args='one two three'
 .PHONY: run
-run: $(FILE_EXE) $(ALL_SRC)
-	./$(FILE_EXE)
+run: $(FILE_EXE)
+	$(FILE_EXE) $(args)
 
 .PHONY: run_w
 run_w:
-	$(WATCH_COMP) -- $(MAKE) run
-
-# Example: `make some_file.exe && ./some_file.exe`. This recipe doesn't need
-# to deal with multiple translation units or know dependencies between files,
-# because we prefer "unity build": each C file includes all its dependencies
-# via `#include` and uses `#pragma once` for deduplication.
-#
-# Even on Unix, using `.exe` is convenient. It makes this recipe
-# possible, allows to use `.INTERMEDIATE` for auto-cleanup, and
-# allows `make clean` to delete these executables by wildcard.
-#
-# Also see `make run` which runs and deletes the executable.
-%.exe: %.c $(ALL_SRC)
-	$(CC) $(CFLAGS) -x c $< -o $@
-
-**/%.exe: %.c $(ALL_SRC)
-	$(CC) $(CFLAGS) -x c $< -o $@
+	$(WATCH_SRC) -- $(MAKE) run
 
 # Fires off `lldb` with the given `file` and `args`
 # without starting the executable.
@@ -116,7 +67,7 @@ debug_run:
 
 .PHONY: debug_run_w
 debug_run_w:
-	$(WATCH_IMM) -- $(MAKE) debug_run
+	$(WATCH_EXE) -- $(MAKE) debug_run
 
 .PHONY: prepro
 prepro:
@@ -135,17 +86,17 @@ disasm:
 
 .PHONY: clean
 clean:
-	rm -rf $(GEN) $(wildcard $(ARTIF))
+	rm -rf $(GEN_DIR) $(wildcard $(ARTIF))
 
 # The MIG's output is much worse than this.
 $(MACH_GEN_OUT): $(MACH_GEN_SRC)
-	mkdir -p $(GEN)
-	xcrun mig -server $(GEN)/tmp.c -user /dev/null -header /dev/null $(MACH_GEN_SRC) \
-		&& cat mig/mach_pre.txt $(GEN)/tmp.c mig/mach_suf.txt \
+	mkdir -p $(GEN_DIR)
+	xcrun mig -server $(GEN_DIR)/tmp.c -user /dev/null -header /dev/null $(MACH_GEN_SRC) \
+		&& cat mig/mach_pre.txt $(GEN_DIR)/tmp.c mig/mach_suf.txt \
 			| sed -e 's/__attribute__((unused))//g' -e 's/__attribute__((__unused__))//g' \
 			| clang-format \
 			> $(MACH_GEN_OUT) \
-		; rm -rf $(GEN)/tmp.c
+		; rm -rf $(GEN_DIR)/tmp.c
 
 # make get dir=some_repo/clib
 .PHONY: get

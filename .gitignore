@@ -3,6 +3,7 @@
 !/*.h
 !/*.md
 !/*.txt
+!/*.mk
 !/makefile
 !/unlicense
 !/drafts

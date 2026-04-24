@@ -24,12 +24,12 @@ typedef struct {
 static void buf_deinit(Str *val) {
   if (!val) return;
   const auto fun = val->free;
-  if (fun && val->val) fun(val->val);
+  if (fun && val->buf) fun(val->buf);
   *val = (Str){};
 }
 
 static bool buf_is_cstr(Str val) {
-  return val.val && val.cap > val.len && !val.val[val.len];
+  return val.buf && val.cap > val.len && !val.buf[val.len];
 }
 
 static Str str_from(char *src) {
