@@ -31,9 +31,9 @@ static bool mem_eq(const void *one, const void *two, Uint len) {
 static void hash_table_deinit(void *tab) {
   const auto tar = (Hash_table *)tab;
   if (!tar) return;
-  if (tar->bits) free(tar->bits);
-  if (tar->keys) free(tar->keys);
-  if (tar->vals) free(tar->vals);
+  free(tar->bits);
+  free(tar->keys);
+  free(tar->vals);
   *tar = (Hash_table){};
 }
 

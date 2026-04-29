@@ -11,8 +11,8 @@
 static void set_deinit(void *set) {
   const auto tar = (Set *)set;
   if (!tar) return;
-  if (tar->bits) free(tar->bits);
-  if (tar->vals) free(tar->vals);
+  free(tar->bits);
+  free(tar->vals);
   *tar = (Set){};
 }
 
@@ -144,7 +144,7 @@ static void set_eprint_repr(Set *set) {
 #include <stdio.h>
 
 int main(void) {
-  defer(set_deinit) set_of(Sint) set = {};
+  deferred(set_deinit) set_of(Sint) set = {};
   // set_eprint_repr((Set *)&set);
 
   aver(set.len == 0);

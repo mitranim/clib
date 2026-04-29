@@ -132,7 +132,7 @@ int main(void) {
     eprintf("val: ");
     repr_struct(&val);
 
-    defer(buf_deinit) Str copy = str_copy(src);
+    deferred(buf_deinit) Str copy = str_copy(src);
     (void)copy;
   }
 }

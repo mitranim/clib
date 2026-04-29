@@ -74,7 +74,7 @@ static Err print_disasm(const void *src, Ind len) {
   `llvm-mc` doesn't seem to support disassembling actual
   raw bytes, so we have to convert them to hex first.
   */
-  defer(str_deinit) char *buf = malloc(cap);
+  cleanup(str_deinit) char *buf = malloc(cap);
   fmt_bytes_hex_into(buf, cap, src, len);
 
   const auto  proc   = "llvm-mc";

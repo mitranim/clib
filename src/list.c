@@ -11,14 +11,13 @@ Resizing relocates memory; pointers are transient.
 /*
 Frees the data and zeroes all fields. Usage:
 
-  defer(list_deinit) Sint_list some_list = {};
+  deferred(list_deinit) list_of(int) some_list = {};
 */
 static void list_deinit(void *src) {
   const auto tar = (List *)src;
+  if (!tar) return;
   free(tar->dat);
-  tar->dat = nullptr;
-  tar->len = 0;
-  tar->cap = 0;
+  *tar = (List){};
 }
 
 static void list_reserve_total_cap_impl(List *tar, Ind size, Ind cap) {
@@ -96,7 +95,7 @@ static bool is_list_elem_impl(
 #include <stdio.h>
 
 int main(void) {
-  defer(list_deinit) list_of(Uint) list = {};
+  deferred(list_deinit) list_of(Uint) list = {};
 
   // list_head(&list); // crash
 

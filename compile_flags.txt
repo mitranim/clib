@@ -1,4 +1,5 @@
 -std=c2y
+-fdefer-ts
 -funsigned-char
 -fvisibility=hidden
 -Weverything

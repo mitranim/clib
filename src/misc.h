@@ -21,30 +21,28 @@ typedef void(Void_fun)(void);
 
 #define USED __attribute((used))
 
-/*
-Usage:
-
-  defer(type_deinit) type name = {};
-
-Variables used with `defer` must always be initialized.
-Typically this means zero-initialization, but sometimes
-the sentinel value is type-specific, like `-1`.
-
-The type-specific cleanup functions rely on initial
-sentinel values to avoid attempting to free resources
-which weren't actually allocated.
-*/
-#define defer(fun) __attribute__((cleanup(fun)))
+// Requires Clang 22.1 or higher, and `-fdefer-ts`.
+#define defer _Defer
 
 /*
+Alternative to the "real" `defer` which, at the time of writing,
+requires very recent compiler versions.
+
 Usage:
 
-  static void deinit_global_state(void*) {}
-  defer_void(deinit_global_state);
-*/
-#define defer_void(fun) defer(fun) void *UNIQ_IDENT
+  deferred(type_deinit) type name = {};
 
-// For use in `X_deinit` functions used with `defer`.
+Many cleanup functions, such as `list_deinit`, are idempotent,
+and may be called "manually" in addition to the automatic call
+if earlier cleanup is desired. Idempotency requires sentinel
+values, typically 0 / nil, but sometimes a type-specific value
+such as `-1` for file descriptors. This means that variables
+used with `deferred` must always be initialized with the right
+sentinel value for their type; usually `{}`.
+*/
+#define deferred(fun) __attribute__((cleanup(fun)))
+
+// For use in `X_deinit` functions used with `deferred`.
 #define var_deinit_impl(tmp_ptr, tmp_val, name, fun) \
   {                                                  \
     const auto tmp_ptr = name;                       \

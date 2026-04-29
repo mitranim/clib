@@ -10,6 +10,8 @@
 !/mig
 !/src
 
+/src/*.md
+
 # Should be listed last.
 .*
 *.exe

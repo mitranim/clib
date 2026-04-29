@@ -11,21 +11,21 @@
 /*
 Usage example:
 
-  defer(mem_deinit) void * some_val = some_func();
+  deferred(mem_deinit) void * some_val = some_func();
 */
 static void mem_deinit(void **var) { var_deinit(var, free); }
 
 /*
 Usage example:
 
-  defer(str_deinit) char * some_val = some_func();
+  deferred(str_deinit) char * some_val = some_func();
 */
 static void str_deinit(char **var) { mem_deinit((void **)var); }
 
 /*
 Usage example:
 
-  defer(bytes_deinit) U8 * some_val = some_func();
+  deferred(bytes_deinit) U8 * some_val = some_func();
 */
 static void bytes_deinit(U8 **var) { mem_deinit((void **)var); }
 
@@ -99,7 +99,7 @@ static void encode_bigend_U64(U8 *ptr, U64 src) {
 /*
 Usage:
 
-  defer(buf_deinit) Buf buf = {};
+  deferred(buf_deinit) Buf buf = {};
   // ...
 
 Value must be zero-initialized via `{}`.
@@ -109,7 +109,7 @@ before the deferred invocation, any amount of times.
 */
 static void buf_deinit(Buf *buf) {
   if (!buf) return;
-  if (buf->dat) free(buf->dat);
+  free(buf->dat);
   buf->dat = nullptr;
   buf->len = 0;
   buf->cap = 0;
@@ -214,7 +214,7 @@ static constexpr U64 MPAGE_MAGIC[] = {
 /*
 Usage:
 
-  defer(mpage_deinit) void* page = nullptr;
+  deferred(mpage_deinit) void* page = nullptr;
   try(mpage_init(&page, size));
 
 Deinit is idempotent and may be invoked explicitly
@@ -281,15 +281,15 @@ static Err mpage_init(void **page, Ind cap) {
 #include "./misc.h"
 
 int main(int argc, const char *argv[]) {
-  defer(str_deinit) char *empty = nullptr;
-  defer(str_deinit) char *val   = strdup(argv[argc - 1]);
+  deferred(str_deinit) char *empty = nullptr;
+  deferred(str_deinit) char *val   = strdup(argv[argc - 1]);
   puts(val);
 }
 */
 
 /*
 int main(void) {
-  defer(buf_deinit) Buf buf = {};
+  deferred(buf_deinit) Buf buf = {};
 
   buf_append(&buf, 1234);
   printf("buf.len: " FMT_IND "\n", buf.len);
@@ -301,7 +301,7 @@ int main(void) {
 
 /*
 int main(void) {
-  defer(mpage_deinit) void *page;
+  deferred(mpage_deinit) void *page;
   try_main(mpage_init(&page, 0x10000));
 
   static constexpr char msg[] = "test";

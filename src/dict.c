@@ -76,7 +76,7 @@ static void dict_eprint_repr(const Dict *dict) {
 #include <stdio.h>
 
 int main(void) {
-  defer(dict_deinit) dict_of(Sint) dict = {};
+  deferred(dict_deinit) dict_of(Sint) dict = {};
   // dict_eprint_repr((Dict *)&dict);
 
   aver(dict.len == 0);

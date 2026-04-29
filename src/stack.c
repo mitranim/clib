@@ -119,7 +119,7 @@ static Err int_stack_push(Sint_stack *tar, Sint val) {
 #include <stdio.h>
 
 static Err run(void) {
-  defer(stack_deinit) stack_of(Uint) stack = {};
+  deferred(stack_deinit) stack_of(Uint) stack = {};
 
   Stack_opt opt = {.len = 8};
   try(stack_init(&stack, &opt));
