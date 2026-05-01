@@ -16,6 +16,15 @@ help: # Print help.
 	done
 	echo
 
+.PHONY: vet
+vet:
+	clang-tidy --quiet $(SRC_DIR)/*.h $(SRC_DIR)/*.c -- $(CFLAGS) -ferror-limit=1
+	$(OK)
+
+.PHONY: vet_w
+vet_w:
+	$(WATCH_SRC) -- $(MAKE) vet
+
 # Usage example:
 #
 #   make run file=some_file.c
@@ -101,9 +110,9 @@ $(MACH_GEN_OUT): $(MACH_GEN_SRC)
 # make get dir=some_repo/clib
 .PHONY: get
 get:
-	rsync $(SYNC_FLAGS) "$(CODE_DIR)/$(dir)/" "./src/"
+	rsync $(SYNC_FLAGS) "$(CODE_DIR)/$(dir)/" "./$(SRC_DIR)/"
 
 # make set dir=some_repo/clib
 .PHONY: set
 set:
-	rsync $(SYNC_FLAGS) "./src/" "$(CODE_DIR)/$(dir)/"
+	rsync $(SYNC_FLAGS) "./$(SRC_DIR)/" "$(CODE_DIR)/$(dir)/"

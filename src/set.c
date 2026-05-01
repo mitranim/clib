@@ -16,7 +16,7 @@ static void set_deinit(void *set) {
   *tar = (Set){};
 }
 
-static void set_init_impl(Set *set, Ind cap, Uint size) {
+static void set_init_impl(Set *set, Ind cap, Ind size) {
   if (!cap) {
     *set = (Set){};
     return;
@@ -65,21 +65,21 @@ static bool set_loaded(const Set *set) {
   return hash_table_loaded((const Hash_table *)set);
 }
 
-static Ind set_matching_ind(const Set *set, const void *val, Uint size) {
+static Ind set_matching_ind(const Set *set, const void *val, Ind size) {
   return hash_table_matching_ind(
     (const Hash_table *)set, val, size, mem_hash, mem_eq
   );
 }
 
 static Ind set_available_ind(
-  const Set *set, const void *val, Uint size, bool *new
+  const Set *set, const void *val, Ind size, bool *new
 ) {
   return hash_table_available_ind(
     (const Hash_table *)set, val, size, mem_hash, mem_eq, new
   );
 }
 
-static void set_rehash(Set *prev, Ind cap, Uint size) {
+static void set_rehash(Set *prev, Ind cap, Ind size) {
   Set next;
   set_init_impl(&next, cap, size);
 
@@ -100,7 +100,7 @@ static void set_rehash(Set *prev, Ind cap, Uint size) {
   *prev = next;
 }
 
-static void *set_add_impl(Set *set, const void *val, Uint size) {
+static void *set_add_impl(Set *set, const void *val, Ind size) {
   if (!set->cap) {
     set_init_impl(set, HASH_TABLE_INIT_CAP, size);
   }

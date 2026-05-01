@@ -52,17 +52,17 @@ static void elem_deinit(Elem *elem) {
   list_deinit(&elem->chi);
 }
 
-static void elem_print_html(FILE *out, Elem elem) {
-  if (elem.tag) {
+static void elem_print_html(FILE *out, Elem *elem) {
+  if (elem->tag) {
     fputc('<', out);
-    fputs(elem.tag, out);
+    fputs(elem->tag, out);
 
-    if (elem.cls) {
+    if (elem->cls) {
       fputs(" class=", out);
       fputc('"', out);
 
       // Known issue: attr value needs escaping.
-      fputs(elem.cls, out);
+      fputs(elem->cls, out);
 
       fputc('"', out);
     }
@@ -71,16 +71,16 @@ static void elem_print_html(FILE *out, Elem elem) {
   }
 
   // Known issue: needs escaping.
-  if (elem.txt) fputs(elem.txt, out);
+  if (elem->txt) fputs(elem->txt, out);
 
-  for (Ind ind = 0; ind < elem.chi.len; ind++) {
-    elem_print_html(out, elem.chi.dat[ind]);
+  for (Ind ind = 0; ind < elem->chi.len; ind++) {
+    elem_print_html(out, &elem->chi.dat[ind]);
   }
 
-  if (elem.tag) {
+  if (elem->tag) {
     fputc('<', out);
     fputc('/', out);
-    fputs(elem.tag, out);
+    fputs(elem->tag, out);
     fputc('>', out);
   }
 }
@@ -100,7 +100,6 @@ int main(void) {
     ),
   };
   defer elem_deinit(elem);
-
-  elem_print_html(stdout, *elem);
+  elem_print_html(stdout, elem);
   putc('\n', stdout);
 }

@@ -22,9 +22,16 @@ static void list_deinit(void *src) {
 
 static void list_reserve_total_cap_impl(List *tar, Ind size, Ind cap) {
   if (cap <= tar->cap) return;
-  tar->dat = realloc(tar->dat, cap * size);
+
+  const auto next = mul(cap, size);
+  const auto dat  = realloc(tar->dat, next);
+  aver(dat);
+
+  tar->dat = dat;
   tar->cap = cap;
 }
+
+// NOLINTBEGIN(bugprone-easily-swappable-parameters)
 
 static void list_reserve_spare_cap_impl(List *tar, Ind size, Ind more) {
   const auto goal = tar->len + more;
@@ -32,6 +39,8 @@ static void list_reserve_spare_cap_impl(List *tar, Ind size, Ind more) {
   while (next < goal) next *= 2;
   list_reserve_total_cap_impl(tar, size, next);
 }
+
+// NOLINTEND(bugprone-easily-swappable-parameters)
 
 static void list_reserve_more(List *tar, Ind size) {
   if (tar->len < tar->cap) return;
@@ -51,7 +60,8 @@ static void list_push_raw_impl(
     fatal("unable to push raw data: out of capacity", file, line);
   }
 
-  memcpy(((U8 *)tar->dat + (tar->len * size)), src, len);
+  const auto off = mul(tar->len, size);
+  memcpy(((U8 *)tar->dat + off), src, len);
   tar->len += len / size;
 }
 
@@ -72,7 +82,7 @@ static bool list_valid(const List *list) {
 // clang-format on
 
 static void *list_ceil_impl(const List *list, Ind size) {
-  return (U8 *)list->dat + (list->cap * size);
+  return (U8 *)list->dat + mul(list->cap, size);
 }
 
 static bool is_list_elem_impl(

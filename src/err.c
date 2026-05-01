@@ -1,5 +1,6 @@
 #pragma once
 #include "./err.h" // IWYU pragma: export
+#include "./fmt.h"
 #include <errno.h>
 #include <execinfo.h>
 #include <stdio.h>
@@ -7,12 +8,20 @@
 #include <string.h>
 #include <unistd.h>
 
-static void backtrace_capture() {
+static void backtrace_capture(void) {
   BT_BUF_LEN = backtrace(BT_BUF, arr_cap(BT_BUF));
 }
 
 static void backtrace_print() {
-  if (BT_BUF_LEN) backtrace_symbols_fd(BT_BUF, BT_BUF_LEN, STDERR_FILENO);
+  const auto len = BT_BUF_LEN;
+  if (!len) return;
+
+  backtrace_symbols_fd(BT_BUF, len, STDERR_FILENO);
+
+  constexpr int cap = arr_cap(BT_BUF);
+  if (!DEBUG || len < cap) return;
+
+  eprintf("[debug] backtrace may have been truncated (capacity = %d)\n", cap);
 }
 
 [[noreturn]]

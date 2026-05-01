@@ -21,8 +21,10 @@ typedef void(Void_fun)(void);
 
 #define USED __attribute((used))
 
-// Requires Clang 22.1 or higher, and `-fdefer-ts`.
+// Requires Clang 22.1 or higher and `-fdefer-ts`.
+#if !defined(defer) && defined(__is_identifier) && !__is_identifier(_Defer)
 #define defer _Defer
+#endif
 
 /*
 Alternative to the "real" `defer` which, at the time of writing,
@@ -43,17 +45,17 @@ sentinel value for their type; usually `{}`.
 #define deferred(fun) __attribute__((cleanup(fun)))
 
 // For use in `X_deinit` functions used with `deferred`.
-#define var_deinit_impl(tmp_ptr, tmp_val, name, fun) \
-  {                                                  \
-    const auto tmp_ptr = name;                       \
-    if (!tmp_ptr) return;                            \
-    void *tmp_val = *tmp_ptr;                        \
-    if (!tmp_val) return;                            \
-    *tmp_ptr = nullptr;                              \
-    fun(tmp_val);                                    \
+#define var_deinit_inner(tmp_ptr, tmp_val, name, fun) \
+  {                                                   \
+    const auto tmp_ptr = name;                        \
+    if (!tmp_ptr) return;                             \
+    void *tmp_val = *tmp_ptr;                         \
+    if (!tmp_val) return;                             \
+    *tmp_ptr = nullptr;                               \
+    fun(tmp_val);                                     \
   }
 
-#define var_deinit(...) var_deinit_impl(UNIQ_IDENT, UNIQ_IDENT, __VA_ARGS__)
+#define var_deinit(...) var_deinit_inner(UNIQ_IDENT, UNIQ_IDENT, __VA_ARGS__)
 
 #ifndef unreachable
 #define unreachable __builtin_unreachable
@@ -69,14 +71,14 @@ sentinel value for their type; usually `{}`.
 
 #define span(max) range(auto, tmp_ind, max)
 
-#define either_impl(tmp, A, B) \
-  ({                           \
-    const auto tmp = A;        \
-    tmp ? tmp : B;             \
+#define either_inner(tmp, A, B) \
+  ({                            \
+    const auto tmp = A;         \
+    tmp ? tmp : B;              \
   })
 
 // Non-lazy "or" which doesn't convert operands to 0 or 1.
-#define either(...) either_impl(UNIQ_IDENT, __VA_ARGS__)
+#define either(...) either_inner(UNIQ_IDENT, __VA_ARGS__)
 
 #define assign_cast(tar, src) *(tar) = (typeof(*(tar)))(src)
 

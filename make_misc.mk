@@ -1,5 +1,4 @@
 # Shared stuff for inclusion in makefiles.
-# Requires Make 4+ for `$(file < ...)`.
 
 MAKEFLAGS := --silent
 MAKE_CONC := $(MAKE) -j 128 CONC=true clear=$(or $(clear),false)
@@ -8,13 +7,12 @@ HERE ?= $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 CC ?= clang
 PROD ?=
 STRICT ?=
-DEBUG_FLAGS_0 ?= -g3 -fsanitize=undefined,address,integer,nullability -fstack-protector
-DEBUG_FLAGS_1 ?= -g3 -Wno-unused-parameter -Wno-unused-variable
-DEBUG_FLAGS_PROD ?= -g3 -O2 -Wno-unused-parameter -Wno-unused-variable
-DEBUG_FLAGS ?= $(if $(DEBUG),$(DEBUG_FLAGS_0),$(if $(PROD),$(DEBUG_FLAGS_PROD),$(DEBUG_FLAGS_1)))
+CFLAGS_DEBUG ?= -fsanitize=undefined,address,integer,nullability -fstack-protector
+CFLAGS_PROD ?= -O2
+DEBUG_FLAGS ?= -g3 $(if $(DEBUG),$(CFLAGS_DEBUG),$(if $(PROD),$(CFLAGS_PROD),$(CFLAGS_DEBUG)))
 CRASH_FLAGS ?= $(and $(FAST_CRASH),-DFAST_CRASH)
 STRICT_FLAGS ?= $(and $(STRICT),-Werror)
-COMPILE_FLAGS ?= $(strip $(file < $(HERE)/compile_flags.txt))
+COMPILE_FLAGS ?= $(strip $(shell cat $(HERE)/compile_flags.txt))
 CFLAGS ?= $(and $(PROD),-DPROD) $(COMPILE_FLAGS) $(STRICT_FLAGS) $(DEBUG_FLAGS) $(CRASH_FLAGS)
 SRC_DIR ?= src
 GEN_DIR ?= generated
