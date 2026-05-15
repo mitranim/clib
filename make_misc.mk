@@ -4,7 +4,7 @@ MAKEFLAGS := --silent
 MAKE_CONC := $(MAKE) -j 128 CONC=true clear=$(or $(clear),false)
 CLEAR ?= $(if $(filter false,$(clear)),, )
 HERE ?= $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
-CC ?= clang
+CC := clang
 PROD ?=
 STRICT ?=
 CFLAGS_DEBUG ?= -fsanitize=undefined,address,integer,nullability -fstack-protector

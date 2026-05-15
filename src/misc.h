@@ -82,4 +82,4 @@ sentinel value for their type; usually `{}`.
 
 #define assign_cast(tar, src) *(tar) = (typeof(*(tar)))(src)
 
-#define sizeof_field(type, name) sizeof(((type *)nullptr)->name)
+#define sizeof_field(type, name) (Ind)sizeof(((type *)nullptr)->name)

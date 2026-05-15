@@ -1,5 +1,6 @@
-# Requires Make 4+`.
-include ./make_misc.mk
+# Using this weird incantation instead of `./` allows this include
+# to work when the current file is included from other directories.
+include $(abspath $(dir $(lastword $(MAKEFILE_LIST))))/make_misc.mk
 -include .env.properties
 
 MACH_GEN_SRC ?= mig/mach_exc.defs
@@ -7,12 +8,13 @@ MACH_GEN_OUT ?= $(GEN_DIR)/mach_exc.c
 CODE_DIR ?= $(HOME)/code/$(USER)
 SYNC_FLAGS ?= -au --itemize-changes $(and $(dry),-n)
 
+.PHONY: help
 help: # Print help.
 	echo "Select one of the following commands."
 	echo "Viewing a definition: \`make -n <name>\`."
 	echo
 	for val in $(MAKEFILE_LIST); do \
-		grep -E '^\S+:' $$val | sed 's/:.*#/#--/;s/:.*$$/#--/;s/^/  /' | column -t -s '#' | uniq || true; \
+		grep -E '^[[:alnum:]_]+(\.[[:alnum:]_]+)*:' $$val | sed 's/:.*#/#--/;s/:.*$$/#--/;s/^/  /' | column -t -s '#' | uniq || true; \
 	done
 	echo
 
@@ -47,21 +49,6 @@ debug:
 		--one-line "settings set target.disable-aslr true" \
 		$(and $(DEBUG),--one-line "settings set target.env-vars DEBUG=true") \
 		--file $(file) -- $(args)
-
-# .PHONY: debug_run
-# debug_run:
-# 	lldb --batch \
-# 		--source-quietly \
-# 		--one-line "settings set show-statusline false" \
-# 		--one-line "process handle SIGSEGV --notify true --pass true --stop false" \
-# 		--one-line "process handle SIGBUS  --notify true --pass true --stop false" \
-# 		--one-line "process handle SIGILL  --notify true --pass true --stop false" \
-# 		--one-line "process handle SIGABRT --notify true --pass true --stop false" \
-# 		--one-line "settings set target.disable-aslr true" \
-# 		$(and $(DEBUG),--one-line "settings set target.env-vars DEBUG=true") \
-# 		--one-line "run" \
-# 		--one-line "quit" \
-# 		--file $(file) -- $(args)
 
 .PHONY: debug_run
 debug_run:
