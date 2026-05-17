@@ -17,7 +17,7 @@ static bool TRACE = false;
 #define XCAT_IDENT(A, B) CAT_IDENT(A, B)
 #define UNIQ_IDENT XCAT_IDENT(__uniq_, __COUNTER__)
 
-typedef void(Void_fun)(void);
+typedef void Void_fun(void);
 
 #define USED __attribute((used))
 
