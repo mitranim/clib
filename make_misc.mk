@@ -1,7 +1,7 @@
 # Shared stuff for inclusion in makefiles.
 
 MAKEFLAGS := --silent
-MAKE_CONC := $(MAKE) -j 128 CONC=true clear=$(or $(clear),false)
+MAKE_CONC := $(MAKE) -j CONC=true clear=$(or $(clear),false)
 CLEAR ?= $(if $(filter false,$(clear)),, )
 HERE ?= $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 CC := clang
@@ -23,7 +23,7 @@ WATCH_IGNORE ?= -i=$(GEN_DIR)
 WATCH ?= watchexec $(and $(CLEAR),-c) $(WATCH_IGNORE) -r -d=1ms -n -q
 WATCH_SRC ?= $(WATCH) -e=c,h,s
 WATCH_EXE ?= $(WATCH) -e=exe --no-vcs-ignore
-ARTIF ?= $(shell find . \( -type d -name '*.dSYM' \) -or \( -type f \( -name '.DS_Store' -or -name '*.o' -or -name '*.exe' \) \))
+ARTIF ?= $(shell find . \( -type d -name '*.dSYM' \) -or \( -type f \( -name '.DS_Store' -or -name '*.o' -or -name '*.exe' -or -name '*.pch' \) \))
 
 ifeq ($(verb),true)
 	OK = echo [$@] ok

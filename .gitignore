@@ -8,9 +8,11 @@
 !/unlicense
 !/drafts
 !/mig
-!/src
 
-/src/*.md
+!/src
+/src/*
+!/src/*.h
+!/src/*.c
 
 # Should be listed last.
 .*
