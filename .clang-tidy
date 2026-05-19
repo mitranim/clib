@@ -19,6 +19,9 @@ Checks:
   # Has false positives which break code when complied with.
   - -readability-redundant-parentheses
 
+  # Conflicts with clang-format include sorting.
+  - -llvm-include-order
+
   - -google-readability-braces-around-statements
   - -llvmlibc-restrict-system-libc-headers
   - -hicpp-braces-around-statements

@@ -14,6 +14,11 @@
 !/src/*.h
 !/src/*.c
 
+!/test
+/test/*
+!/test/*.h
+!/test/*.c
+
 # Should be listed last.
 .*
 *.exe

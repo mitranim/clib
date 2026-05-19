@@ -6,7 +6,18 @@ include $(abspath $(dir $(lastword $(MAKEFILE_LIST))))/make_misc.mk
 MACH_GEN_SRC ?= mig/mach_exc.defs
 MACH_GEN_OUT ?= $(GEN_DIR)/mach_exc.c
 CODE_DIR ?= $(HOME)/code/$(USER)
+SRC_DIR ?= src
+TEST_DIR ?= test
 SYNC_FLAGS ?= -au --itemize-changes $(and $(dry),-n)
+TIMEOUT ?= gtimeout
+TEST_TIMEOUT ?= 2
+TEST_KILL_AFTER ?= 1
+TEST_SRC ?= $(wildcard test/*_test.c)
+TEST_EXE ?= $(TEST_SRC:.c=.exe)
+FILES ?= $(shell find $(SRC_DIR) $(TEST_DIR) -type f \( -name '*.h' -or -name '*.c' \))
+
+# Shut up pointless allocator warnings.
+export MallocNanoZone=0
 
 .PHONY: help
 help: # Print help.
@@ -20,12 +31,28 @@ help: # Print help.
 
 .PHONY: vet
 vet:
-	clang-tidy --quiet $(SRC_DIR)/*.h $(SRC_DIR)/*.c -- $(CFLAGS) -ferror-limit=1
+	clang-tidy --quiet $(FILES) -- $(CFLAGS) -ferror-limit=1
 	$(OK)
 
 .PHONY: vet_w
 vet_w:
 	$(WATCH_SRC) -- $(MAKE) vet
+
+# The last extra newline is not cosmetic; it splits commands.
+define RUN_TEST
+
+echo [test] $(1)
+$(TIMEOUT) --kill-after=$(TEST_KILL_AFTER)s $(TEST_TIMEOUT)s $(abspath $(1))
+
+endef
+
+.PHONY: test
+test: $(TEST_EXE)
+	$(foreach file,$(TEST_EXE),$(call RUN_TEST,$(file)))
+
+.PHONY: test_w
+test_w:
+	$(WATCH_SRC) -- $(MAKE) test
 
 # Usage example:
 #
@@ -83,6 +110,10 @@ disasm:
 .PHONY: clean
 clean:
 	rm -rf $(GEN_DIR) $(wildcard $(ARTIF))
+
+.PHONY: fmt
+fmt:
+	clang-format -i $(FILES)
 
 # The MIG's output is much worse than this.
 $(MACH_GEN_OUT): $(MACH_GEN_SRC)

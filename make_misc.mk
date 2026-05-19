@@ -14,7 +14,6 @@ CRASH_FLAGS ?= $(and $(FAST_CRASH),-DFAST_CRASH)
 STRICT_FLAGS ?= $(and $(STRICT),-Werror)
 COMPILE_FLAGS ?= $(strip $(shell cat $(HERE)/compile_flags.txt))
 CFLAGS ?= $(and $(PROD),-DPROD) $(COMPILE_FLAGS) $(STRICT_FLAGS) $(DEBUG_FLAGS) $(CRASH_FLAGS)
-SRC_DIR ?= src
 GEN_DIR ?= generated
 ALL_SRC ?= $(shell find $(HERE) -type f \( -name '*.c' -or -name '*.h' \) )
 FILE_EXE ?= $(and $(file),$(abspath $(basename $(file)).exe))
@@ -48,5 +47,14 @@ endif
 # allows `make clean` to delete these executables by wildcard.
 #
 # Also see `make run` which runs and deletes the executable.
+#
+# Uses temporary storage and copying to bypass MacOS security scan on rebuild.
+# When launching any new executable, Gatekeeper takes a long time scanning it,
+# wasting developer time on rebuilds. Clang also removes existing `-o` targets
+# before writing new executables, triggering the Gatekeeper scan. Copying over
+# an existing file with `cp` avoids this.
 %.exe: %.c $(ALL_SRC)
-	$(CC) $(CFLAGS) -x c $< -o $@
+	tmp="$@.tmp.$$$$"; \
+	trap 'rm -rf "$$tmp" "$$tmp.dSYM"' EXIT HUP INT TERM; \
+	$(CC) $(CFLAGS) -x c $< -o "$$tmp"; \
+	cp "$$tmp" "$@"
