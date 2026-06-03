@@ -104,7 +104,7 @@ static void cli_key_val(Str src, Str *key, Str *val) {
   str_split(src, '=', key, val);
 }
 
-int main(void) {
+int main() {
   char *argv_arr[] = {
     "",
     "one",

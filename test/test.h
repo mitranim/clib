@@ -51,7 +51,7 @@ static int TEST_FAILURES = 0;
     }                                                                         \
   })
 
-static int test_done(void) {
+static int test_done() {
   if (TEST_FAILURES) {
     fprintf(stderr, "failed: %d\n", TEST_FAILURES);
     return 1;

@@ -1,7 +1,7 @@
 #include "../src/list.c"
 #include "./test.h"
 
-static void test_list_pop_returns_last_element(void) {
+static void test_list_pop_returns_last_element() {
   deferred(list_deinit) list_of(U32) vals = {};
 
   list_append(&vals, (U32)11);
@@ -13,7 +13,7 @@ static void test_list_pop_returns_last_element(void) {
   test_eq_U64(vals.len, 0);
 }
 
-static void test_list_reserve_spare_cap_initializes_empty_list(void) {
+static void test_list_reserve_spare_cap_initializes_empty_list() {
   deferred(list_deinit) list_of(U32) vals = {};
 
   list_reserve_spare_cap(&vals, 3);
@@ -23,7 +23,7 @@ static void test_list_reserve_spare_cap_initializes_empty_list(void) {
   test_assert(vals.cap >= 3);
 }
 
-static void test_list_reserve_spare_cap_zero_does_not_allocate(void) {
+static void test_list_reserve_spare_cap_zero_does_not_allocate() {
   deferred(list_deinit) list_of(U32) vals = {};
 
   list_reserve_spare_cap(&vals, 0);
@@ -33,7 +33,7 @@ static void test_list_reserve_spare_cap_zero_does_not_allocate(void) {
   test_eq_U64(vals.cap, 0);
 }
 
-int main(void) {
+int main() {
   test_list_pop_returns_last_element();
   test_list_reserve_spare_cap_initializes_empty_list();
   test_list_reserve_spare_cap_zero_does_not_allocate();

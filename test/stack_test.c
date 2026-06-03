@@ -1,7 +1,7 @@
 #include "../src/stack.c"
 #include "./test.h"
 
-static void test_stack_pop_works_when_full(void) {
+static void test_stack_pop_works_when_full() {
   deferred(stack_deinit) stack_of(U32) vals = {};
 
   Stack_opt opt = {.len = 2};
@@ -20,7 +20,7 @@ static void test_stack_pop_works_when_full(void) {
   test_eq_U64(stack_len(&vals), 0);
 }
 
-int main(void) {
+int main() {
   test_stack_pop_works_when_full();
   return test_done();
 }

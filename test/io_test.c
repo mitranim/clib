@@ -2,7 +2,7 @@
 #include "./test.h"
 #include <unistd.h>
 
-static void test_file_read_text_len_excludes_synthetic_nul(void) {
+static void test_file_read_text_len_excludes_synthetic_nul() {
   char      path[] = "/tmp/clib_io_test_XXXXXX";
   const int fdes   = mkstemp(path);
 
@@ -25,7 +25,7 @@ static void test_file_read_text_len_excludes_synthetic_nul(void) {
   test_eq_str(out, body);
 }
 
-static void test_file_read_text_rejects_non_regular_files(void) {
+static void test_file_read_text_rejects_non_regular_files() {
   Uint  len = 0;
   char *out = nullptr;
   defer free(out);
@@ -37,7 +37,7 @@ static void test_file_read_text_rejects_non_regular_files(void) {
   test_assert(!out);
 }
 
-int main(void) {
+int main() {
   test_file_read_text_len_excludes_synthetic_nul();
   test_file_read_text_rejects_non_regular_files();
   return test_done();

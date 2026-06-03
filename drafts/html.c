@@ -85,7 +85,7 @@ static void elem_print_html(FILE *out, Elem *elem) {
   }
 }
 
-int main(void) {
+int main() {
   const auto elem = E{
     .tag = "one",
     .cls = "three",

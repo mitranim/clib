@@ -3,7 +3,7 @@
 
 typedef str_buf(4) Small_str;
 
-static void test_str_set_produces_null_terminated_buf(void) {
+static void test_str_set_produces_null_terminated_buf() {
   Word_str word = {};
 
   const Err err = str_set(&word, "one");
@@ -14,7 +14,7 @@ static void test_str_set_produces_null_terminated_buf(void) {
   test_eq_U64(word.buf[word.len], '\0');
 }
 
-static void test_str_set_overflow_preserves_null_contract(void) {
+static void test_str_set_overflow_preserves_null_contract() {
   Small_str word = {};
 
   test_assert(!str_set(&word, "hi"));
@@ -26,7 +26,7 @@ static void test_str_set_overflow_preserves_null_contract(void) {
   test_eq_U64(word.buf[word.len], '\0');
 }
 
-static void test_str_push_preserves_null_termination(void) {
+static void test_str_push_preserves_null_termination() {
   Small_str word = {.buf = {'\0', 'x', 'x', 'x'}};
 
   test_assert(!str_push(&word, 'a'));
@@ -45,7 +45,7 @@ static void test_str_push_preserves_null_termination(void) {
   if (!word.buf[word.len]) test_eq_str(word.buf, "abc");
 }
 
-static void test_str_trunc_preserves_null_termination(void) {
+static void test_str_trunc_preserves_null_termination() {
   Word_str word = {};
 
   test_assert(!str_set(&word, "abc"));
@@ -56,7 +56,7 @@ static void test_str_trunc_preserves_null_termination(void) {
   test_eq_U64(word.buf[word.len], '\0');
 }
 
-static void test_str_fmt_preserves_null_termination(void) {
+static void test_str_fmt_preserves_null_termination() {
   Word_str word = {};
 
   str_fmt(&word, "%s %d", "abc", 123);
@@ -66,7 +66,7 @@ static void test_str_fmt_preserves_null_termination(void) {
   test_eq_U64(word.buf[word.len], '\0');
 }
 
-static void test_str_eq_requires_exact_match(void) {
+static void test_str_eq_requires_exact_match() {
   Word_str word = {};
 
   const Err err = str_set(&word, "abc");
@@ -78,7 +78,7 @@ static void test_str_eq_requires_exact_match(void) {
   test_assert(!str_eq(&word, "abcd"));
 }
 
-int main(void) {
+int main() {
   test_str_set_produces_null_terminated_buf();
   test_str_set_overflow_preserves_null_contract();
   test_str_push_preserves_null_termination();
