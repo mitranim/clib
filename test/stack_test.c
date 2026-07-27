@@ -6,7 +6,7 @@ static void test_stack_pop_works_when_full() {
 
   Stack_opt opt = {.len = 2};
 
-  averr(stack_init(&vals, &opt));
+  try_fatal(stack_init(&vals, &opt));
   test_eq_U64(stack_len(&vals), 0);
 
   stack_push(&vals, (U32)11);

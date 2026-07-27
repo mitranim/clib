@@ -6,7 +6,7 @@ A combination of fixed-size buffers and constant strings is
 often sufficient.
 */
 #pragma once
-#include "../src/err.h"
+#include "../src/err.c"
 #include "../src/fmt.h"
 #include "../src/num.h"
 
@@ -21,6 +21,19 @@ typedef struct {
   void (*free)(void *); // For allocator-managed strings.
 } Str;
 
+static Ind cstr_len(const char *src) {
+  const auto len = strlen(src);
+  assert_fatal(len < IND_MAX);
+  return (Ind)len;
+}
+
+static Ind cstr_ind(const char *beg, const char *end) {
+  assert_fatal(end >= beg);
+  const auto ind = end - beg;
+  assert_fatal((Uint)ind < IND_MAX);
+  return (Ind)ind;
+}
+
 static void buf_deinit(Str *val) {
   if (!val) return;
   const auto fun = val->free;
@@ -34,7 +47,7 @@ static bool buf_is_cstr(Str val) {
 
 static Str str_from(char *src) {
   if (!src) return (Str){};
-  const auto len = strlen(src);
+  const auto len = cstr_len(src);
   return (Str){.buf = src, .len = len, .cap = len + 1};
 }
 
@@ -42,7 +55,7 @@ static Ind str_char_at(Str str, char byte) {
   if (!str.buf) return INVALID_IND;
   const auto ptr = strchr(str.buf, byte);
   if (!ptr) return INVALID_IND;
-  return ptr - str.buf;
+  return cstr_ind(str.buf, ptr);
 }
 
 static bool str_is_cli_flag(Str src) {
@@ -75,7 +88,7 @@ static void str_split(Str src, char byte, Str *one, Str *two) {
     return;
   }
 
-  const auto ind = sep - src.buf;
+  const Ind ind = cstr_ind(src.buf, sep);
 
   *one = (Str){
     .buf = src.buf,

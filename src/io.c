@@ -1,13 +1,16 @@
 #pragma once
 #include "./err.c"
 #include "./fmt.c"
+#include "./mem.c"
 #include "./misc.h"
 #include "./num.h"
 #include <fcntl.h>
+#include <poll.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <termios.h>
+#include <unistd.h>
 
 /*
 Usage:
@@ -34,7 +37,7 @@ static Err err_file_unable_to_open(const char *path) {
   const auto msg = strerror(errno);
 
   if (!msg) {
-    return errf("unable to open file " FMT_QUOTED, path, errno);
+    return errf("unable to open file " FMT_QUOTED "; code: %d", path, errno);
   }
 
   return errf(
@@ -128,12 +131,17 @@ static Err file_read(const char *path, U8 **out_body, Uint *out_len) {
   try(fd_stat(path, file, &info));
 
   if (!S_ISREG(info.st_mode)) return err_file_not_regular(path);
-  aver(info.st_size >= 0);
+  try_assert(info.st_size >= 0);
 
   const auto file_len = (Uint)info.st_size;
-  const auto buf_len  = add(file_len, 1);
+  const auto buf_len  = ADD(file_len, 1);
   U8        *buf      = malloc(buf_len);
-  const auto err      = fd_read_all(path, file, buf, file_len);
+
+  if (!buf) {
+    return errf("unable to allocate " FMT_UINT " bytes for %s", buf_len, path);
+  }
+
+  const auto err = fd_read_all(path, file, buf, file_len);
 
   if (err) {
     free(buf);
@@ -150,6 +158,103 @@ static Err file_read_text(const char *path, char **out_body, Uint *out_len) {
   return file_read(path, (U8 **)out_body, out_len);
 }
 
+static Err err_file_unable_to_read_stream(const char *path) {
+  const auto code = errno;
+  return errf(
+    "unable to read stream %s; code: %d; message: %s", path, code, strerror(code)
+  );
+}
+
+static Err stream_append(
+  const char *path, char **out_buf, Uint *out_len, const char *src, Uint src_len
+) {
+  const auto len = *out_len;
+  const auto cap = len + src_len + 1;
+  char      *buf = realloc(*out_buf, cap);
+
+  if (!buf) {
+    return errf("unable to allocate " FMT_UINT " bytes for %s", cap, path);
+  }
+
+  memcpy(buf + len, src, src_len);
+  buf[len + src_len] = '\0';
+  *out_buf           = buf;
+  *out_len           = len + src_len;
+  return nullptr;
+}
+
+static Err file_stream_read_text(
+  const char *path, FILE *file, char **out_body, Uint *out_len
+) {
+  deferred(chars_deinit) char *body = nullptr;
+  Uint                         len  = 0;
+  char                         buf[4096];
+
+  for (;;) {
+    const auto read_len = fread(buf, 1, sizeof(buf), file);
+    if (read_len) try(stream_append(path, &body, &len, buf, read_len));
+    if (read_len == sizeof(buf)) continue;
+    if (ferror(file)) return err_file_unable_to_read_stream(path);
+    break;
+  }
+
+  if (!body) {
+    body = calloc(1, 1);
+    if (!body) return errf("unable to allocate 1 byte for %s", path);
+  }
+
+  *out_body = body;
+  *out_len  = len;
+  body      = nullptr;
+  return nullptr;
+}
+
+static Err fd_read_available_text(
+  const char *path, int file, char **out_body, Uint *out_len
+) {
+  deferred(chars_deinit) char *body = nullptr;
+  Uint                         len  = 0;
+  char                         buf[4096];
+
+  for (;;) {
+    const auto read_len = read(file, buf, sizeof(buf));
+    if (!read_len) break;
+
+    if (read_len < 0) {
+      if (errno == EINTR) continue;
+      return err_file_unable_to_read_stream(path);
+    }
+
+    try(stream_append(path, &body, &len, buf, (Uint)read_len));
+
+    struct pollfd poll_fd = {.fd = file, .events = POLLIN};
+    int           ready;
+
+    do ready = poll(&poll_fd, 1, 0);
+    while (ready < 0 && errno == EINTR);
+
+    if (ready < 0) return err_file_unable_to_read_stream(path);
+
+    const auto events = (Uint)(U16)poll_fd.revents;
+
+    if (events & (Uint)(POLLERR | POLLNVAL)) {
+      return err_file_unable_to_read_stream(path);
+    }
+    if (events & (Uint)POLLIN) continue;
+    break;
+  }
+
+  if (!body) {
+    body = calloc(1, 1);
+    if (!body) return errf("unable to allocate 1 byte for %s", path);
+  }
+
+  *out_body = body;
+  *out_len  = len;
+  body      = nullptr;
+  return nullptr;
+}
+
 static Err err_file_write(Uint exp, Uint act) {
   return errf(
     "stream write error: " FMT_UINT " objects written instead of " FMT_UINT,
@@ -161,34 +266,35 @@ static Err err_file_write(Uint exp, Uint act) {
 static Err file_write(
   FILE *restrict file, const void *restrict vals, Uint val_size, Uint vals_len
 ) {
+  try_assert(!!file);
   const auto out = fwrite(vals, val_size, vals_len, file);
   if (out == vals_len) return nullptr;
   return err_file_write(vals_len, out);
 }
 
-static Err write_all(int file, const U8 *buf, Ind len, int *out_err) {
+static Err write_all(int file, const U8 *buf, Uint len, int *out_err) {
   while (len) {
     auto wrote = write(file, buf, len);
 
     if (wrote > 0) {
-      aver(wrote <= len);
-      buf += wrote;
-      len -= wrote;
+      const auto val = (Uint)wrote;
+      try_assert(val <= len);
+      buf += val;
+      len -= val;
       continue;
     }
 
-    const auto err = errno;
-    if (err == EINTR) continue;
-    if (err == EPIPE) return nullptr; // File closed early.
+    const auto code = errno;
+    if (code == EINTR) continue;
 
-    if (out_err) *out_err = err;
-    const auto msg = strerror(err);
+    if (out_err) *out_err = code;
+    const auto msg = strerror(code);
 
     if (!msg) {
-      return errf("unable to fully write to file %d; code: %d", file, err);
+      return errf("unable to fully write to file %d; code: %d", file, code);
     }
     return errf(
-      "unable to fully write to file %d; code: %d; msg: %s", file, err, msg
+      "unable to fully write to file %d; code: %d; msg: %s", file, code, msg
     );
   }
   return nullptr;

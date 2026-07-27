@@ -13,16 +13,30 @@ MUST_USE typedef const char *Err;
 
 typedef Err Err_fun(void);
 
-// Assert with backtrace. Name yoinked from SBCL.
-#define aver(expr)                                                           \
+/*
+Assert with backtrace. Name yoinked from SBCL.
+
+TODO: convert fatal assertions to recoverable `try_assert` where feasible.
+*/
+#define assert_fatal(expr)                                                   \
   ({                                                                         \
     static_assert(                                                           \
       !__builtin_types_compatible_p(typeof_unqual(expr), typeof_unqual(Err)) \
     );                                                                       \
-    if (!(expr)) aver_fatal(#expr, __FILE__, __LINE__);                      \
+    if (!(expr)) fatal_assert(#expr, __FILE__, __LINE__);                    \
   })
 
-#define averr_inner(tmp, expr)                    \
+#define err_assert(expr)                                                     \
+  ({                                                                         \
+    static_assert(                                                           \
+      !__builtin_types_compatible_p(typeof_unqual(expr), typeof_unqual(Err)) \
+    );                                                                       \
+    (expr) ? nullptr : err_assert_fail(#expr, __FILE__, __LINE__);           \
+  })
+
+#define try_assert(expr) try(err_assert(expr))
+
+#define try_fatal_inner(tmp, expr)                \
   {                                               \
     Err tmp = expr;                               \
     if (tmp) {                                    \
@@ -30,10 +44,10 @@ typedef Err Err_fun(void);
     }                                             \
   }
 
-#define averr(...) averr_inner(UNIQ_IDENT, __VA_ARGS__)
+#define try_fatal(...) try_fatal_inner(UNIQ_IDENT, __VA_ARGS__)
 
 #ifdef FAST_CRASH
-#define try averr
+#define try try_fatal
 #else
 #define try_inner(tmp, expr) \
   {                          \
@@ -44,7 +58,7 @@ typedef Err Err_fun(void);
 #endif
 
 /*
-For procedures which return 0/-1 and set `errno`.
+For functions which return 0/-1 and set `errno`.
 
 Discards the value in case of non-error, which makes this unsuitable
 for `mmap`, whose result is either -1 or an address.
@@ -55,7 +69,7 @@ for `mmap`, whose result is either -1 or an address.
   ((expr) == -1 ? err_from_errno(errno, #expr, __func__, __FILE__, __LINE__) \
                 : nullptr)
 
-// For procedures which directly return errno or 0.
+// For functions which directly return errno or 0.
 #define try_errno_posix(expr) try(err_errno_posix(expr))
 
 #define err_errno_posix_inner(tmp, expr)                                      \

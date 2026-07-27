@@ -1,10 +1,11 @@
 #include "../src/str.c"
 #include "./test.h"
 
-typedef str_buf(4) Small_str;
+typedef str_buf(4)   Small_str;
+typedef str_buf(128) Test_str;
 
 static void test_str_set_produces_null_terminated_buf() {
-  Word_str word = {};
+  Test_str word = {};
 
   const Err err = str_set(&word, "one");
 
@@ -46,7 +47,7 @@ static void test_str_push_preserves_null_termination() {
 }
 
 static void test_str_trunc_preserves_null_termination() {
-  Word_str word = {};
+  Test_str word = {};
 
   test_assert(!str_set(&word, "abc"));
   str_trunc(&word);
@@ -57,7 +58,7 @@ static void test_str_trunc_preserves_null_termination() {
 }
 
 static void test_str_fmt_preserves_null_termination() {
-  Word_str word = {};
+  Test_str word = {};
 
   str_fmt(&word, "%s %d", "abc", 123);
 
@@ -67,7 +68,7 @@ static void test_str_fmt_preserves_null_termination() {
 }
 
 static void test_str_eq_requires_exact_match() {
-  Word_str word = {};
+  Test_str word = {};
 
   const Err err = str_set(&word, "abc");
   test_assert(!err);

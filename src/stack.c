@@ -21,14 +21,20 @@ static Err stack_deinit(void *stack) {
   if (!tar) return nullptr;
 
   const auto addr = tar->cellar;
-  if (addr) try_errno(munmap(addr, tar->bytelen));
+  const auto err  = addr ? err_errno(munmap(addr, tar->bytelen)) : nullptr;
 
   *tar = (Stack){};
-  return nullptr;
+  return err;
 }
 
 static Err err_stack_no_len() {
   return err_str("unable to allocate stack: missing length");
+}
+
+static Err err_no_page_size(int size) {
+  return errf(
+    "unable to obtain page size via `getpagesize`; got unexpected value %d", size
+  );
 }
 
 /*
@@ -39,38 +45,46 @@ Underflow or overflow triggers a segfault.
   guard    stack            guard
 */
 static Err stack_init_impl(void *out, Stack_opt *opt, Ind val_size) {
+  *(Stack *)out = (Stack){};
+
   const auto len = opt ? opt->len : 0;
   if (!len) return err_stack_no_len();
 
-  const auto page_size = getpagesize();
-  aver(page_size >= 0 && page_size < INT_MAX);
-  static_assert(sizeof(typeof(page_size)) <= sizeof(Ind));
+  const int page = getpagesize();
+  if (!(page >= 0 && page < INT_MAX)) return err_no_page_size(page);
 
-  const auto guard_size = (Ind)page_size;
-  const auto data_size  = val_size * len;
-  const auto total_size = __builtin_align_up(
-    (guard_size + data_size + guard_size), (Ind)page_size
-  );
+  const auto page_size  = (Ind)page;
+  const auto data_size  = __builtin_align_up(MUL(val_size, len), page_size);
+  const auto total_size = page_size + data_size + page_size;
 
   const auto cellar = mem_map(total_size, 0);
   if (cellar == MAP_FAILED) return err_mmap();
 
-  const auto floor = (U8 *)cellar + guard_size;
-  try(mem_protect(floor, data_size, PROT_READ | PROT_WRITE));
+  const auto floor = (U8 *)cellar + page_size;
+  const auto err   = mem_protect(floor, data_size, PROT_READ | PROT_WRITE);
+  if (err) {
+    munmap(cellar, total_size);
+    return err;
+  }
 
   *(Stack *)out = (Stack){
-    .bytelen = total_size,
-    .cellar  = cellar,
-    .floor   = floor,
     .top     = floor, // Empty ascending.
     .ceil    = floor + data_size,
+    .floor   = floor,
+    .cellar  = cellar,
+    .bytelen = total_size,
   };
   return nullptr;
 }
 
+static bool span_valid(const Span *span) {
+  return span && span->floor && span->floor <= span->top &&
+    span->top <= span->ceil;
+}
+
 // clang-format off
 
-static bool stack_valid(Stack const *stack) {
+static bool stack_valid(const Stack *stack) {
   return (
     stack &&
     is_aligned(stack) &&
@@ -82,43 +96,47 @@ static bool stack_valid(Stack const *stack) {
     stack->bytelen &&
     stack->cellar &&
     stack->cellar < stack->floor &&
-    stack->floor &&
-    stack->floor < stack->ceil &&
-    stack->top &&
-    stack->ceil
+    span_valid((const Span *)stack)
   );
 }
 
 // clang-format on
 
-static void stack_rewind_impl(const Stack *prev, Stack *next) {
-  aver(next->floor == prev->floor);
+static void span_rewind_impl(const Span *prev, Span *next) {
+  assert_fatal(next->floor == prev->floor);
+  assert_fatal(next->ceil == prev->ceil);
   next->top = prev->top;
 }
 
 static void Stack_repr(Stack *val) {
   print_struct_beg(val, Stack);
-  print_struct_field(val, bytelen);
-  print_struct_field(val, cellar);
-  print_struct_field(val, floor);
   print_struct_field(val, top);
   print_struct_field(val, ceil);
+  print_struct_field(val, floor);
+  print_struct_field(val, cellar);
+  print_struct_field(val, bytelen);
   print_struct_end();
 }
 
 // Placed here when I was too tired to properly organize.
 // TODO consider where this should be moved.
-static Err int_stack_pop(Sint_stack *src, Sint *out) {
-  if (stack_len(src) <= 0) return err_str("underflow of integer stack");
+static Err cell_stack_pop(Sint_span *src, Sint *out) {
+  if (stack_len(src) <= 0) return err_str("cell stack underflow");
   const auto val = stack_pop(src);
   if (out) *out = val;
   return nullptr;
 }
 
-static Err int_stack_push(Sint_stack *tar, Sint val) {
-  if (stack_rem(tar) <= 0) return err_str("overflow of integer stack");
+static Err cell_stack_push(Sint_span *tar, Sint val) {
+  if (stack_rem(tar) <= 0) return err_str("cell stack overflow");
   stack_push(tar, val);
   return nullptr;
+}
+
+static void stack_valid_count_type_test() {
+  static_assert_type(stack_cap_valid((U8_span *)nullptr), Ind);
+  static_assert_type(stack_len_valid((U8_span *)nullptr), Ind);
+  static_assert_type(stack_rem_valid((U8_span *)nullptr), Ind);
 }
 
 /*

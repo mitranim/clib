@@ -77,32 +77,32 @@ static constexpr auto INVALID_IND = (Ind)-1;
     val != INVALID_IND;                                                   \
   })
 
-#define add_inner(tmp, one, two)                   \
-  ({                                               \
-    typeof_unqual(one) tmp;                        \
-    aver(!__builtin_add_overflow(one, two, &tmp)); \
-    tmp;                                           \
+#define add_inner(tmp, one, two)                           \
+  ({                                                       \
+    typeof_unqual(one) tmp;                                \
+    assert_fatal(!__builtin_add_overflow(one, two, &tmp)); \
+    tmp;                                                   \
   })
 
-#define add(...) add_inner(UNIQ_IDENT, __VA_ARGS__)
+#define ADD(...) add_inner(UNIQ_IDENT, __VA_ARGS__)
 
-#define sub_inner(tmp, one, two)                   \
-  ({                                               \
-    typeof_unqual(one) tmp;                        \
-    aver(!__builtin_sub_overflow(one, two, &tmp)); \
-    tmp;                                           \
+#define sub_inner(tmp, one, two)                           \
+  ({                                                       \
+    typeof_unqual(one) tmp;                                \
+    assert_fatal(!__builtin_sub_overflow(one, two, &tmp)); \
+    tmp;                                                   \
   })
 
-#define sub(...) sub_inner(UNIQ_IDENT, __VA_ARGS__)
+#define SUB(...) sub_inner(UNIQ_IDENT, __VA_ARGS__)
 
-#define mul_inner(tmp, one, two)                   \
-  ({                                               \
-    typeof_unqual(one) tmp;                        \
-    aver(!__builtin_mul_overflow(one, two, &tmp)); \
-    tmp;                                           \
+#define mul_inner(tmp, one, two)                           \
+  ({                                                       \
+    typeof_unqual(one) tmp;                                \
+    assert_fatal(!__builtin_mul_overflow(one, two, &tmp)); \
+    tmp;                                                   \
   })
 
-#define mul(...) mul_inner(UNIQ_IDENT, __VA_ARGS__)
+#define MUL(...) mul_inner(UNIQ_IDENT, __VA_ARGS__)
 
 #define min_inner(tmp_A, tmp_B, A, B)               \
   ({                                                \
@@ -111,7 +111,7 @@ static constexpr auto INVALID_IND = (Ind)-1;
     (typeof(tmp_A))(tmp_A < tmp_B ? tmp_A : tmp_B); \
   })
 
-#define min(...) min_inner(UNIQ_IDENT, UNIQ_IDENT, __VA_ARGS__)
+#define MIN(...) min_inner(UNIQ_IDENT, UNIQ_IDENT, __VA_ARGS__)
 
 #define max_inner(tmp_A, tmp_B, A, B)               \
   ({                                                \
@@ -120,7 +120,7 @@ static constexpr auto INVALID_IND = (Ind)-1;
     (typeof(tmp_A))(tmp_A > tmp_B ? tmp_A : tmp_B); \
   })
 
-#define max(...) max_inner(UNIQ_IDENT, UNIQ_IDENT, __VA_ARGS__)
+#define MAX(...) max_inner(UNIQ_IDENT, UNIQ_IDENT, __VA_ARGS__)
 
 /*
 For powers of 2 this is equivalent to `big % smol`

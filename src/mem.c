@@ -54,10 +54,13 @@ static Ind mem_size(Ind len, Ind size) {
 }
 
 // Overflow-safe counterpart of `malloc(len * size)`.
-static void *memalloc(Ind len, Ind size) { return malloc(mem_size(len, size)); }
+static void *memalloc(Ind len, Ind size) {
+  size = mem_size(len, size);
+  return size ? malloc(size) : nullptr;
+}
 
 static void *ptr_at(void *src, Ind ind, Ind size) {
-  return (U8 *)src + mem_size(ind, size);
+  return size ? (U8 *)src + mem_size(ind, size) : nullptr;
 }
 
 static Err err_mmap() {
@@ -120,7 +123,7 @@ Usage:
 
 Value must be zero-initialized via `{}`.
 
-The procedure is idempotent and may be called explicitly
+The function is idempotent and may be called explicitly
 before the deferred invocation, any amount of times.
 */
 static void buf_deinit(Buf *buf) {
@@ -138,15 +141,15 @@ Reserves at least this much extra capacity over the current capacity. Due to
 pow2 rounding, capacity may be increased by more than the requested amount.
 */
 static void buf_reserve(Buf *buf, Ind more) {
-  const auto goal = add(buf->len, more);
+  const auto goal = ADD(buf->len, more);
   if (buf->cap >= goal) return;
 
   const Ind cap = round_up_pow2_Ind(goal);
-  aver(cap);
-  aver(cap >= goal);
+  assert_fatal(cap);
+  assert_fatal(cap >= goal);
 
   const auto dat = realloc(buf->dat, cap);
-  aver(dat);
+  assert_fatal(dat);
 
   buf->dat = dat;
   buf->cap = cap;
@@ -274,6 +277,8 @@ Also see `./stack.c` and `./stack.h` for a more specialized analogue,
 intended for generic stacks of values of any one type.
 */
 static Err mpage_init(void **page, Ind cap) {
+  *page = nullptr;
+
   const auto data_size = __builtin_align_up(cap, MEM_PAGE);
   const auto full_size = MEM_PAGE + MEM_PAGE + data_size + MEM_PAGE;
   const auto base      = mem_map(full_size, 0);
@@ -283,18 +288,26 @@ static Err mpage_init(void **page, Ind cap) {
   const auto meta = (Mpage *)base;
   const auto data = (void *)((U8 *)base + MEM_PAGE + MEM_PAGE);
 
-  try(mem_protect(meta, MEM_PAGE, PROT_READ | PROT_WRITE));
-  try(mem_protect(data, data_size, PROT_READ | PROT_WRITE));
+  Err err = mem_protect(meta, MEM_PAGE, PROT_READ | PROT_WRITE);
+  if (!err) {
+    err = mem_protect(data, data_size, PROT_READ | PROT_WRITE);
+    if (!err) {
+      *meta = (Mpage){
+        .head[0] = MPAGE_MAGIC[0],
+        .head[1] = MPAGE_MAGIC[1],
+        .size    = full_size,
+      };
 
-  *meta = (Mpage){
-    .head[0] = MPAGE_MAGIC[0],
-    .head[1] = MPAGE_MAGIC[1],
-    .size    = full_size,
-  };
+      err = mem_protect(meta, MEM_PAGE, PROT_READ);
+      if (!err) {
+        *page = data;
+        return nullptr;
+      }
+    }
+  }
 
-  try(mem_protect(meta, MEM_PAGE, PROT_READ));
-  *page = data;
-  return nullptr;
+  munmap(base, full_size);
+  return err;
 }
 
 /*
@@ -321,7 +334,7 @@ int main() {
 
 /*
 int main() {
-  deferred(mpage_deinit) void *page;
+  deferred(mpage_deinit) void *page = nullptr;
   try_main(mpage_init(&page, 0x10000));
 
   static constexpr char msg[] = "test";

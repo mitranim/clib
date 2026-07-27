@@ -5,10 +5,25 @@
 #include <assert.h>
 #include <string.h>
 
+typedef struct {
+  Ind len;
+} Stack_opt;
+
+// SYNC[span_fields].
+#define span_of(Elem) \
+  struct {            \
+    Elem *top;        \
+    Elem *ceil;       \
+    Elem *floor;      \
+  }
+
+typedef span_of(void) Span;
+
 /*
 Stack with guards. Macros below assume the "empty ascending" style.
 
-Field ordering matters; some code hardcodes the offsets.
+The first three fields exactly match `Span`, allowing a stack to be viewed
+as a span. Field ordering matters; some code hardcodes the offsets.
 
 `bytelen` is pointer-sized `Uint` for ABI reasons;
 this allows for easier interop with external code.
@@ -17,34 +32,24 @@ size representable with `Ind` (subject to change).
 
 SYNC[stack_field_offsets].
 */
-typedef struct {
-  Uint  bytelen; // Size of full region in bytes.
-  void *cellar;  // Starting address of full region: `guard|stack|guard`.
-  void *floor;   // Starting address of stack region.
-  void *top;     // Address of "current" stack item, if any.
-  void *ceil;    // Starting address of second guard, just above the stack.
-} Stack;
-
-// SYNC[stack_field_offsets].
 #define stack_of(Elem) \
   struct {             \
-    Uint  bytelen;     \
-    Elem *cellar;      \
-    Elem *floor;       \
     Elem *top;         \
     Elem *ceil;        \
+    Elem *floor;       \
+    void *cellar;      \
+    Uint  bytelen;     \
   }
 
-typedef struct {
-  Ind len;
-} Stack_opt;
+typedef stack_of(void) Stack;
 
-#define span_of(Elem) \
-  struct {            \
-    Elem *floor;      \
-    Elem *top;        \
-    Elem *ceil;       \
-  }
+// SYNC[span_fields].
+// SYNC[stack_field_offsets].
+static_assert(!offsetof(Span, top));
+static_assert(!offsetof(Stack, top));
+static_assert(offsetof(Stack, top) == offsetof(Span, top));
+static_assert(offsetof(Stack, ceil) == offsetof(Span, ceil));
+static_assert(offsetof(Stack, floor) == offsetof(Span, floor));
 
 typedef stack_of(Uint) Uint_stack;
 typedef stack_of(Sint) Sint_stack;
@@ -79,6 +84,23 @@ typedef span_of(F64)  F64_span;
 #define stack_len(stack) ((Sint)((stack)->top - (stack)->floor))
 #define stack_rem(stack) ((Sint)((stack)->ceil - (stack)->top))
 
+#define stack_delta_valid_inner(tmp, delta) \
+  ({                                        \
+    const Sint tmp = delta;                 \
+    assert_fatal(tmp >= 0);                 \
+    assert_fatal((Uint)tmp <= IND_MAX);     \
+    (Ind) tmp;                              \
+  })
+
+#define stack_cap_valid(stack) \
+  stack_delta_valid_inner(UNIQ_IDENT, stack_cap(stack))
+
+#define stack_len_valid(stack) \
+  stack_delta_valid_inner(UNIQ_IDENT, stack_len(stack))
+
+#define stack_rem_valid(stack) \
+  stack_delta_valid_inner(UNIQ_IDENT, stack_rem(stack))
+
 #define stack_val_type(stack) typeof((stack)->floor[0])
 #define stack_val_size(stack) (Ind)sizeof((stack)->floor[0])
 
@@ -95,7 +117,7 @@ typedef span_of(F64)  F64_span;
 #define stack_push_inner(tmp, stack, ...) \
   ({                                      \
     const auto tmp = (stack)->top;        \
-    aver(tmp < (stack)->ceil);            \
+    assert_fatal(tmp < (stack)->ceil);    \
     *tmp         = __VA_ARGS__;           \
     (stack)->top = tmp + 1;               \
     tmp;                                  \
@@ -136,7 +158,7 @@ typedef span_of(F64)  F64_span;
 #define stack_push_from_inner(tmp, out, src)                            \
   ({                                                                    \
     static_assert(sizeof(*(out)->top) == sizeof(*(src)->top));          \
-    const auto tmp = stack_len(src);                                    \
+    const auto tmp = stack_len_valid(src);                              \
     if (tmp > 0) {                                                      \
       memcpy((out)->top, (src)->floor, tmp * (Ind)sizeof(*(out)->top)); \
       (out)->top += tmp;                                                \
@@ -150,8 +172,8 @@ typedef span_of(F64)  F64_span;
 // Providing an invalid pointer is UB.
 #define stack_ind(stack, val) ((Ind)((val) - (stack)->floor))
 
-#define stack_rewind(prev, next) \
-  stack_rewind_impl((const Stack *)prev, (Stack *)next)
+#define span_rewind(prev, next) \
+  span_rewind_impl((const Span *)prev, (Span *)next)
 
 #define is_stack_elem_inner(tmp_stack, tmp_ptr, stack, ptr)   \
   ({                                                          \

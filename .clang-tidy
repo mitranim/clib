@@ -12,6 +12,9 @@ Checks:
   # They can't be parenthesized.
   - -bugprone-macro-parentheses
 
+  - -hicpp-no-assembler # No choice.
+  - -readability-identifier-length # `reg_x0` isn't an improvement over `x0`.
+
   # Has many false positives but may catch bugs.
   # Silenced on a case-by-case basis with casts.
   # - -hicpp-signed-bitwise
@@ -19,9 +22,19 @@ Checks:
   # Has false positives which break code when complied with.
   - -readability-redundant-parentheses
 
+  # We have some cyclic includes and that's okay.
+  - -misc-header-include-cycle
+
   # Conflicts with clang-format include sorting.
   - -llvm-include-order
 
+  - -misc-no-recursion # WTF
+  - -bugprone-branch-clone
+  - -bugprone-invalid-enum-default-initialization
+
+  - -bugprone-assignment-in-if-condition
+  - -performance-no-int-to-ptr
+  - -bugprone-easily-swappable-parameters # So many unavoidables.
   - -google-readability-braces-around-statements
   - -llvmlibc-restrict-system-libc-headers
   - -hicpp-braces-around-statements

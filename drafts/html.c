@@ -2,6 +2,7 @@
 #include "../src/list.c"
 #include "../src/num.h"
 #include <stdarg.h>
+#include <stddefer.h>
 #include <stdio.h>
 
 typedef struct Elem   Elem;

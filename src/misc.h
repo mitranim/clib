@@ -6,7 +6,7 @@
 static bool DEBUG = false;
 static bool TRACE = false;
 
-#ifdef PROD
+#ifdef NDEBUG
 #define IF_DEBUG(code)
 #else
 #define IF_DEBUG(code) \
@@ -21,16 +21,17 @@ typedef void Void_fun(void);
 
 #define USED __attribute((used))
 
-// Requires Clang 22.1 or higher and `-fdefer-ts`.
-#if !defined(defer) && defined(__is_identifier) && !__is_identifier(_Defer)
-#define defer _Defer
-#endif
-
 /*
-Alternative to the "real" `defer` which, at the time of writing,
-requires very recent compiler versions.
+Limited alternative to the "real defer" which, at the time of writing,
+requires very recent versions of Clang or GCC.
 
-Usage:
+"Real defer" looks like this:
+
+  #include <stddefer.h>
+  type name = {};
+  defer type_deinit(&name);
+
+This alternative is used like this:
 
   deferred(type_deinit) type name = {};
 
@@ -41,6 +42,19 @@ values, typically 0 / nil, but sometimes a type-specific value
 such as `-1` for file descriptors. This means that variables
 used with `deferred` must always be initialized with the right
 sentinel value for their type; usually `{}`.
+
+General lifecycle contract for complex C values:
+
+- `Type_init(&val)` initializes undefined storage and clears `val` first.
+- `Type_init` may leave `val` partially initialized on error.
+- Callers must defer cleanup: `deferred(Type_deinit) Type val = {};`.
+- `Type_deinit(&val)` must tolerate zero and partially-inited values,
+  perform best-effort cleanup, and leave `val` in its sentinel state.
+- Calling `Type_init` on a live value without deiniting is a bug.
+
+Simple values without `Type_init` rely on caller-provided sentinel init.
+Many structures, such as stack / list / dict, are valid after zero-init.
+Some values, such as file descriptors, require special sentinel like -1.
 */
 #define deferred(fun) __attribute__((cleanup(fun)))
 
@@ -71,14 +85,15 @@ sentinel value for their type; usually `{}`.
 
 #define span(max) range(auto, tmp_ind, max)
 
-#define either_inner(tmp, A, B) \
-  ({                            \
-    const auto tmp = A;         \
-    tmp ? tmp : B;              \
+#define either_inner(tmp_A, tmp_B, A, B) \
+  ({                                     \
+    const auto tmp_A = A;                \
+    const auto tmp_B = B;                \
+    tmp_A ? tmp_A : tmp_B;               \
   })
 
 // Non-lazy "or" which doesn't convert operands to 0 or 1.
-#define either(...) either_inner(UNIQ_IDENT, __VA_ARGS__)
+#define either(...) either_inner(UNIQ_IDENT, UNIQ_IDENT, __VA_ARGS__)
 
 #define assign_cast(tar, src) *(tar) = (typeof(*(tar)))(src)
 

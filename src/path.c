@@ -22,6 +22,14 @@ static bool is_path_abs(const char *path) {
   return !!path && (path[0] == '/' || path_has_volume(path));
 }
 
+static bool is_path_explicit_rel(const char *path) {
+  return !!path && path[0] == '.';
+}
+
+static bool is_path_implicit_rel(const char *path) {
+  return !!path && !is_path_abs(path) && !is_path_explicit_rel(path);
+}
+
 /*
 Strictly relative paths look like this: `file.ext` or `dir/file.ext`.
 They don't begin with any of:
@@ -57,23 +65,25 @@ static char *path_join(const char *base, const char *suf, bool is_dir) {
   const auto buf_cap = buf_len + 1;
   const auto buf     = (char *)calloc(buf_cap, sizeof(char));
 
+  if (!buf) return nullptr;
+
   auto rem = buf_len;
   auto ptr = buf;
 
   auto len = strlcpy(ptr, base, rem);
   ptr += len;
-  aver(rem >= len);
+  assert_fatal(rem >= len);
   rem -= len;
 
   len = strlcpy(ptr, inf, rem);
   ptr += len;
-  aver(rem >= len);
+  assert_fatal(rem >= len);
   rem -= len;
 
   len = strlcpy(ptr, suf, rem);
   // (void)(ptr += len);
 
-  aver(rem >= len);
+  assert_fatal(rem >= len);
   rem -= len;
 
   if (!rem) {
@@ -93,19 +103,13 @@ static bool is_path_stdin(const char *path) {
   return !strcmp(path, "-") || !strcmp(path, "/dev/stdin");
 }
 
-/*
-Normalizes the path so the file can be opened,
-and returns a statically allocated string.
-*/
-static const char *file_path_stdio(const char *path) {
-  if (is_path_stdin(path)) {
-    return "/dev/stdin";
-  }
-  if (!strcmp(path, "/dev/stdout")) {
-    return "/dev/stdout";
-  }
-  if (!strcmp(path, "/dev/stderr")) {
-    return "/dev/stderr";
-  }
-  return nullptr;
-}
+// /*
+// Normalizes the path so the file can be opened,
+// and returns a statically allocated string.
+// */
+// static const char *file_path_stdio(const char *path) {
+//   if (is_path_stdin(path)) return "/dev/stdin";
+//   if (!strcmp(path, "/dev/stdout")) return "/dev/stdout";
+//   if (!strcmp(path, "/dev/stderr")) return "/dev/stderr";
+//   return nullptr;
+// }

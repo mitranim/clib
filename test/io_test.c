@@ -1,12 +1,13 @@
 #include "../src/io.c"
 #include "./test.h"
+#include <stddefer.h>
 #include <unistd.h>
 
 static void test_file_read_text_len_excludes_synthetic_nul() {
   char      path[] = "/tmp/clib_io_test_XXXXXX";
   const int fdes   = mkstemp(path);
 
-  aver(fdes >= 0);
+  assert_fatal(fdes >= 0);
   defer close(fdes);
   defer unlink(path);
 
@@ -19,7 +20,7 @@ static void test_file_read_text_len_excludes_synthetic_nul() {
   char *out = nullptr;
   defer free(out);
 
-  averr(file_read_text(path, &out, &len));
+  try_fatal(file_read_text(path, &out, &len));
 
   test_eq_U64(len, sizeof(body) - 1);
   test_eq_str(out, body);

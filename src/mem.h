@@ -3,7 +3,7 @@
 #include <string.h>
 
 /*
-Memory page size used by some platforms; common on Arm64.
+Preferred memory page size. 16 KiB is common on Arm64.
 
 `getpagesize()` and `sysconf(_SC_PAGESIZE)` also exist,
 but a hardcoded page size can be used for array sizes.
@@ -22,8 +22,10 @@ static constexpr Ind MEM_PAGE = 1u << 14u; // 16 KiB
 
 /*
 Resizable buffer. Same as `list_of(U8)`; see `./list.h` and `./list.c`.
-Comes with additional procedures and macros for appending binary data.
+Comes with additional functions and macros for appending binary data.
 Must be zero-initialized before first use.
+
+SYNC[list_fields].
 */
 typedef struct {
   U8 *dat;
